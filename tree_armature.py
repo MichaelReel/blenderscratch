@@ -10,10 +10,12 @@ Create an armature and mesh/object at the cursor
 # TODO: get from dialog?
 start_bough_size = 5
 start_branch_tilt = 50
-branch_segments = 3  # Max ~4
+branch_segments = 4  # Max ~4
+branch_per_segment = 3
 
-bough_length_mod = -1
+bough_length_mod = -0.75
 branch_tilt_mod = -10
+show_data_debug = False
 
 
 def object_mode():
@@ -27,9 +29,21 @@ def edit_mode():
 
 
 def add_bough(parent_bone, bough_size, tilt, rotation, depth=0):
+    """
+    Adds a branch along with recursive sub-branches.
+    
+    `parent_bone` is the bone to which the branch will be added
+    and also to which context will be returned on completion.
+    `bough_size` is the length of the current branch.
+    N.B: sub branches will be modified by the global settings
+    `tilt` is the angle in degrees from the parent orientation
+    offsetting from what would be a direct extension.
+    `rotation` is the roll angle around the parent branch at which 
+    to tilt the new branch.
+    `depth` is how maybe recursive layers of sub-branches to generate. 
+    """
     # Need to access the collection of branches/bones
     main_object = bpy.context.object
-    print(f"Extruding upon {parent_bone.name}")
     
     # Extrude off of the currently selected bone
     bpy.ops.armature.extrude_move(
@@ -44,7 +58,6 @@ def add_bough(parent_bone, bough_size, tilt, rotation, depth=0):
     bough = bpy.context.active_object.data.edit_bones.active
     bough.name = "Bough"
     bough_name = bough.name
-    print(f"Bough created '{bough_name}' on parent {bough.parent.name}")
     
     # Initially, line up this new branch to the parent branch
     bough.align_orientation(bough.parent)
@@ -63,14 +76,15 @@ def add_bough(parent_bone, bough_size, tilt, rotation, depth=0):
     
     if depth > 0:
         # Create a set of sub branches
-        for branch in [
-            (bough, bough_size + bough_length_mod, tilt + branch_tilt_mod, 0, depth - 1),
-            (bough, bough_size + bough_length_mod, tilt + branch_tilt_mod, 90, depth - 1),
-            (bough, bough_size + bough_length_mod, tilt + branch_tilt_mod, 180, depth - 1),
-            (bough, bough_size + bough_length_mod, tilt + branch_tilt_mod, 270, depth - 1)
-        ]:
-            print(f"Making bough: {branch} on {bough.name}")
-            add_bough(*branch)
+        degrees_per_segment = 360 / branch_per_segment
+        for branch in range(branch_per_segment):
+            add_bough(
+                parent_bone=bough,
+                bough_size=bough_size + bough_length_mod,
+                tilt=tilt + branch_tilt_mod,
+                rotation=degrees_per_segment * branch,
+                depth=depth - 1
+            )
 
     # Back 'up' (down? root-ward?) the tree
     for bone in main_object.data.edit_bones:
@@ -81,6 +95,9 @@ def add_bough(parent_bone, bough_size, tilt, rotation, depth=0):
 
 
 def create_armature():
+    """
+    Creates an armature object and data that creates a fractal-like tree structure.
+    """
     # Create an armature object with the 'trunk' bone
     bpy.ops.object.armature_add(
         align='CURSOR',
@@ -97,9 +114,10 @@ def create_armature():
     trunk.name = "Trunk"
     
     # Some debug settings (optional)
-#    object.show_axis = True
-#    object.data.show_axes = True
-#    object.data.show_names = True
+    if show_data_debug:
+        object.show_axis = True
+        object.data.show_axes = True
+        object.data.show_names = True
     
     # Move the end of the first bone upwards
     bpy.ops.transform.translate(
@@ -107,17 +125,17 @@ def create_armature():
         orient_matrix_type='CURSOR',
     )
     
-    print(f"Trunk created with name: {trunk.name}")
     if branch_segments > 0:
         # Create a set of branches
-        for branch in [
-            (trunk, start_bough_size + bough_length_mod, start_branch_tilt, 0, branch_segments - 1),
-            (trunk, start_bough_size + bough_length_mod, start_branch_tilt, 90, branch_segments - 1),
-            (trunk, start_bough_size + bough_length_mod, start_branch_tilt, 180, branch_segments - 1),
-            (trunk, start_bough_size + bough_length_mod, start_branch_tilt, 270, branch_segments - 1)
-        ]:
-            print(f"Make bough: {branch} on {trunk.name}")
-            add_bough(*branch)
+        degrees_per_segment = 360 / branch_per_segment
+        for branch in range(branch_per_segment):
+            add_bough(
+                parent_bone=trunk,
+                bough_size=start_bough_size + bough_length_mod,
+                tilt=start_branch_tilt,
+                rotation=degrees_per_segment * branch,
+                depth=branch_segments - 1
+            )
 
 print("\n-- SCRIPT START --")
 object_mode()
