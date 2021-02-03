@@ -5,25 +5,25 @@ bl_info = {
     "author": "Michael Reel",
     "version": (1, 0),
     "blender": (2, 91, 0),
-    "location": "View3D > Add > Mesh > New Object",
+    "location": "View3D > Add > Mesh > Tree With Armature",
     "warning": "",
     "doc_url": "https://github.com/MichaelReel/blenderscratch",
     "tracker_url": "https://github.com/MichaelReel/blenderscratch/issues",
     "support": "TESTING",
-    "category": "Rigging",
+    "category": "Object",
 }
 
 import bpy
-from bpy.types import Operator
+from bpy.types import Operator, Context
 from bpy.props import BoolProperty, IntProperty, FloatProperty
-from bpy_extras.object_utils import AddObjectHelper, object_data_add
+# from bpy_extras.object_utils import object_data_add
 from math import pi
 
 
-class OBJECT_OT_add_object(Operator, AddObjectHelper):
+class OBJECT_OT_tree_with_armature(Operator):
     """Create a new Tree Mesh Object with Armature"""
-    bl_idname = "mesh.add_object"
-    bl_label = "Add Tree Mesh Object with Armature"
+    bl_idname = "mesh.add_tree_with_armature"
+    bl_label = "Tree Mesh Object with Armature"
     bl_options = {'REGISTER', 'UNDO'}
 
     # Input variables
@@ -55,7 +55,7 @@ class OBJECT_OT_add_object(Operator, AddObjectHelper):
         min=0,
         max=10,
         soft_min=0,
-        soft_max=5,
+        soft_max=4,
     )
     branch_per_segment: IntProperty(
         name="Sub Branches per Split",
@@ -64,7 +64,7 @@ class OBJECT_OT_add_object(Operator, AddObjectHelper):
         min=1,
         max=10,
         soft_min=0,
-        soft_max=5,
+        soft_max=4,
     )
     bough_length_mod: FloatProperty(
         name="Branch Size Increment",
@@ -170,13 +170,13 @@ class OBJECT_OT_add_object(Operator, AddObjectHelper):
         parent_bone.select_tail = True
 
 
-    def create_armature(self, context):
+    def create_armature(self, context: Context):
         """
         Creates an armature object and data that creates a fractal-like tree structure.
         """
         # Create an armature object with the 'trunk' bone
         bpy.ops.object.armature_add(
-            align='CURSOR',
+            align='WORLD',
         )
         
         self.edit_mode()
@@ -198,7 +198,7 @@ class OBJECT_OT_add_object(Operator, AddObjectHelper):
         # Move the end of the first bone upwards
         bpy.ops.transform.translate(
             value=(0, 0, self.start_bough_size),
-            orient_matrix_type='CURSOR',
+            orient_matrix_type='NORMAL',
         )
         
         if self.branch_segments > 0:
@@ -226,8 +226,8 @@ class OBJECT_OT_add_object(Operator, AddObjectHelper):
 
 def add_object_button(self, context):
     self.layout.operator(
-        OBJECT_OT_add_object.bl_idname,
-        text="Add Object",
+        OBJECT_OT_tree_with_armature.bl_idname,
+        text="Tree with Armature",
         icon='PLUGIN')
 
 
@@ -241,13 +241,13 @@ def add_object_manual_map():
 
 
 def register():
-    bpy.utils.register_class(OBJECT_OT_add_object)
+    bpy.utils.register_class(OBJECT_OT_tree_with_armature)
     bpy.utils.register_manual_map(add_object_manual_map)
     bpy.types.VIEW3D_MT_mesh_add.append(add_object_button)
 
 
 def unregister():
-    bpy.utils.unregister_class(OBJECT_OT_add_object)
+    bpy.utils.unregister_class(OBJECT_OT_tree_with_armature)
     bpy.utils.unregister_manual_map(add_object_manual_map)
     bpy.types.VIEW3D_MT_mesh_add.remove(add_object_button)
 
