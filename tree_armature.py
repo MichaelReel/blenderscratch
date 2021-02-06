@@ -14,10 +14,17 @@ bl_info = {
 }
 
 import bpy
-from bpy.types import Operator, Context
+from bpy.types import Armature, Bone, Operator, Context
 from bpy.props import BoolProperty, IntProperty, FloatProperty
-# from bpy_extras.object_utils import object_data_add
+from bpy_extras.object_utils import object_data_add
 from math import pi
+from mathutils import Vector
+
+
+class MeshData():
+    verts = []
+    edges = []
+    faces = []
 
 
 class OBJECT_OT_tree_with_armature(Operator):
@@ -212,13 +219,57 @@ class OBJECT_OT_tree_with_armature(Operator):
                     rotation=degrees_per_segment * branch,
                     depth=self.branch_segments - 1
                 )
+        
+        return object
 
+
+    def describe_bones(self, bone: Bone, indent: int = 0):
+        print(f"{' ' * indent}{bone.name}{bone.head} -> {bone.tail}")
+        for cbone in bone.children:
+            self.describe_bones(cbone, indent + 4)
+    
+
+    def mesh_branches(self, bone: Bone, mesh_data: MeshData):
+        """
+        Render all the bones below this one
+        Gather the vectors from each sub-bone
+        Create the base mesh connecting this point to the sub-points
+        Return the points at the base of this mesh (order?)
+        """
+
+        mesh_data.verts.append(Vector((-1, 1, 0)))
+        mesh_data.verts.append(Vector((1, 1, 0)))
+        mesh_data.verts.append(Vector((1, -1, 0)))
+        mesh_data.verts.append(Vector((-1, -1, 0)))
+        mesh_data.faces.append([0, 1, 2, 3])
+
+
+    def create_bark(self, arm_obj, context: Context):
+        # Temp: Describe the armature
+        trunk = arm_obj.data.bones[0]
+        self.describe_bones(trunk)
+
+        mesh_data = MeshData()
+        self.mesh_branches(trunk, mesh_data)
+
+        mesh = bpy.data.meshes.new(name="Tree Mesh")
+        mesh.from_pydata(mesh_data.verts, mesh_data.edges, mesh_data.faces)
+        mesh.validate(verbose=True) # Remove post dev debug
+        # This fails, maybe need another approach (check: https://blender.stackexchange.com/questions/13724/bpy-data-meshes-new-gets-slower-and-slower
+        object_data_add(context, mesh)
+
+        object = bpy.context.object
+        return object
 
 
     def execute(self, context):
         self.object_mode()
-        self.create_armature(context)
+        armature_obj = self.create_armature(context)
         self.object_mode()
+        mesh_obj = self.create_bark(armature_obj, context)
+        # Attempt to link the armature to the mesh
+        mesh_obj.parent = armature_obj
+        mesh_obj.parent_type = 'ARMATURE'
         return {'FINISHED'}
 
 
